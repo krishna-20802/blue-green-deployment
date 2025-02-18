@@ -1,5 +1,6 @@
 blue-green
 PFB the User-Data
+
 #!/bin/bash -xe
 
 yum update -y
