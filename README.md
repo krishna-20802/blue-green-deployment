@@ -1,6 +1,5 @@
 blue-green
 PFB the User-Data
-
 #!/bin/bash -xe
 
 yum update -y
@@ -9,7 +8,6 @@ yum update -y
 yum install httpd -y echo 'Hello' >> /var/www/html/index.html systemctl restart httpd
 
 ##Code Deploy Agent Bootstrap Script##
-
 exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1 AUTOUPDATE=false
 
 function installdep(){
