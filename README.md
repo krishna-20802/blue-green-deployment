@@ -1,19 +1,10 @@
-# blue-green
-
-
-# PFB the User-Data
-
 #!/bin/bash -xe
 
 yum update -y
 
-# Apache install and index.html file creation
-
 yum install httpd -y
 echo 'Hello' >> /var/www/html/index.html
 systemctl restart httpd
-
-## Code Deploy Agent Bootstrap Script##
 
 
 exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1
@@ -24,7 +15,7 @@ function installdep(){
 if [ ${PLAT} = "ubuntu" ]; then
 
   apt-get -y update
-  # Satisfying even ubuntu older versions.
+  
   apt-get -y install jq awscli ruby2.0 || apt-get -y install jq awscli ruby
 
 
