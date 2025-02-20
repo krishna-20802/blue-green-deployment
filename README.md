@@ -1,65 +1,79 @@
+# Blue/Green Deployment Project
+
+This repository contains the implementation of a **Blue/Green Deployment** strategy for seamless application updates with minimal downtime. Below are the steps and resources used in this project.
+
+---
+
+## Project Overview
+
+The Blue/Green Deployment approach ensures:
+- High availability during updates.
+- Quick rollback to the previous version in case of issues.
+- Simplified testing of the new version before full traffic routing.
+
+---
+
+## Steps to Implement
+
+### 1. IAM Roles Setup
+- Created roles for:
+  - S3, CodeDeploy, CodePipeline, and Auto Scaling.
+  - CodeDeploy-specific role.
+
+### 2. Auto Scaling Group (ASG)
+- Created a launch template.
+- Added Security Group (SG) and IAM Role.
+- Configured advanced user data for instance setup.
+- Set up:
+  - Desired capacity.
+  - Load balancer with a new target group.
+
+### 3. S3 Bucket
+- Created an S3 bucket for storing code artifacts.
+
+### 4. CodeDeploy
+- Created an application in CodeDeploy.
+- Configured a deployment group:
+  - Attached the IAM Role.
+  - Integrated the Auto Scaling Group and Target Group.
+
+### 5. CodePipeline
+- Configured a pipeline to automate deployment:
+  - Used S3 for storing artifacts.
+  - Integrated GitHub as the source.
+  - Linked CodeDeploy as the deployment provider.
+
+---
+
+## Key Highlights
+- **Load Balancer Integration:** Ensures smooth traffic switching.
+- **User Data Scripts:** Automates instance setup with HTTPD and CodeDeploy Agent.
+- **Error Troubleshooting:**
+  - Resolved region-specific errors.
+  - Verified user data logs using `/var/log/user-data.log`.
+
+---
+
+## Deployment Verification
+- Verified successful deployment through CodeDeploy.
+- Monitored traffic rerouting and instance termination.
+
+---
+
+## Cleanup
+- Deleted all created resources post-deployment to avoid additional costs.
+
+---
+
+## Sample User Data Script
+```bash
 #!/bin/bash -xe
-
-yum update -y
-
-yum install httpd -y echo 'Hello' >> /var/www/html/index.html systemctl restart httpd
-
-
-exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1 AUTOUPDATE=false
-
-function installdep(){
-
-if [ ${PLAT} = "ubuntu" ]; then
-
-apt-get -y update
+sudo yum update -y
+sudo yum install httpd -y
+echo 'Hello' | sudo tee /var/www/html/index.html
+sudo systemctl restart httpd
 
 
-apt-get -y install jq awscli ruby2.0 || apt-get -y install jq awscli ruby
-
-elif [ ${PLAT} = "amz" ]; then yum -y update yum install -y aws-cli ruby jq
-
-fi
-
-}
-
-function platformize(){
-
-#Linux OS detection# if hash lsb_release; then echo "Ubuntu server OS detected" export PLAT="ubuntu"
-
-elif hash yum; then echo "Amazon Linux detected" export PLAT="amz"
-
-else echo "Unsupported release" exit 1
-
-fi }
-
-function execute(){
-
-if [ ${PLAT} = "ubuntu" ]; then
-
-cd /tmp/ wget https://aws-codedeploy-${REGION}.s3.amazonaws.com/latest/install chmod +x ./install
-
-if ./install auto; then echo "Instalation completed" if ! ${AUTOUPDATE}; then echo "Disabling Auto Update" sed -i '/@reboot/d' /etc/cron.d/codedeploy-agent-update chattr +i /etc/cron.d/codedeploy-agent-update rm -f /tmp/install fi exit 0 else echo "Instalation script failed, please investigate" rm -f /tmp/install exit 1 fi
-
-elif [ ${PLAT} = "amz" ]; then
-
-cd /tmp/ wget https://aws-codedeploy-${REGION}.s3.amazonaws.com/latest/install chmod +x ./install
-
-if ./install auto; then
-  echo "Instalation completed"
-    if ! ${AUTOUPDATE}; then
-        echo "Disabling auto update"
-        sed -i '/@reboot/d' /etc/cron.d/codedeploy-agent-update
-        chattr +i /etc/cron.d/codedeploy-agent-update
-        rm -f /tmp/install
-    fi
-  exit 0
-else
-  echo "Instalation script failed, please investigate"
-  rm -f /tmp/install
-  exit 1
-fi
-else echo "Unsupported platform ''${PLAT}''" fi
-
-}
-
-platformize installdep REGION=$(curl -s 169.254.169.254/latest/dynamic/instance-identity/document | jq -r ".region") execute
+Notes
+The implementation is optimized for AWS and integrates seamlessly with GitHub repositories.
+Ensure you adjust the region in the scripts for compatibility.
