@@ -44,12 +44,11 @@ function platformize() {
 
 
 function install_codedeploy_agent() {
-  REGION="us-east-1"
+  REGION="ap-south-1"  # Use your region here, e.g., us-east-1, ap-south-1, etc.
  
   cd /tmp/
-  wget https://aws-codedeploy-${ap-south-1}.s3.amazonaws.com/latest/install
+  wget https://aws-codedeploy-${REGION}.s3.amazonaws.com/latest/install
   chmod +x ./install
-
 
   if sudo ./install auto; then
     echo "CodeDeploy Agent installation completed"
