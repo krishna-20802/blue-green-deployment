@@ -47,7 +47,7 @@ function install_codedeploy_agent() {
   REGION="us-east-1"
  
   cd /tmp/
-  wget https://aws-codedeploy-${REGION}.s3.amazonaws.com/latest/install
+  wget https://aws-codedeploy-${ap-south-1}.s3.amazonaws.com/latest/install
   chmod +x ./install
 
 
