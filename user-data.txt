@@ -1,72 +1,84 @@
 #!/bin/bash -xe
 
+# Redirect output to logs with correct permissions
+exec > >(sudo tee -a /var/log/user-data.log) 2>&1
 
-# Update and install httpd
-sudo yum update -y
-sudo yum install httpd -y
-echo 'Hello' | sudo tee /var/www/html/index.html
-sudo systemctl restart httpd
+# Update system and install Apache HTTP Server
+if [ -f /etc/os-release ]; then
+    . /etc/os-release
+    case "$ID" in
+      ubuntu)
+        sudo apt-get update -y
+        sudo apt-get install -y apache2
+        sudo systemctl enable apache2
+        sudo systemctl start apache2
+        ;;
+      amzn)
+        sudo yum update -y
+        sudo yum install -y httpd
+        sudo systemctl enable httpd
+        sudo systemctl start httpd
+        ;;
+      *)
+        echo "Unsupported OS: $ID"
+        exit 1
+        ;;
+    esac
+else
+    echo "OS detection failed!"
+    exit 1
+fi
 
+echo 'Hello, World!' | sudo tee /var/www/html/index.html
 
-## Code Deploy Agent Bootstrap Script ##
-
-
-exec > >(tee /var/log/user-data.log | logger -t user-data -s 2>/dev/console) 2>&1
+# Disable automatic updates for CodeDeploy agent
 AUTOUPDATE=false
 
-
-function installdep() {
-  if [ "${PLAT}" = "ubuntu" ]; then
-    sudo apt-get -y update
-    sudo apt-get -y install jq awscli ruby2.0 || sudo apt-get -y install jq awscli ruby
-
-
-  elif [ "${PLAT}" = "amz" ]; then
-    sudo yum -y update
+# Function to install dependencies
+function install_dependencies() {
+  if [ "$ID" = "ubuntu" ]; then
+    sudo apt-get update -y
+    sudo apt-get install -y jq awscli ruby
+  
+  elif [ "$ID" = "amzn" ]; then
+    sudo yum update -y
     sudo yum install -y jq aws-cli ruby
   fi
 }
 
-
-function platformize() {
-  # Linux OS detection #
-  if hash lsb_release 2>/dev/null; then
-    echo "Ubuntu server OS detected"
-    export PLAT="ubuntu"
-  elif hash yum 2>/dev/null; then
-    echo "Amazon Linux detected"
-    export PLAT="amz"
-  else
-    echo "Unsupported release"
-    exit 1
-  fi
-}
-
-
+# Function to install CodeDeploy agent
 function install_codedeploy_agent() {
-  REGION="ap-south-1"  # Use your region here, e.g., us-east-1, ap-south-1, etc.
- 
+  REGION="ap-south-1"  # Change to your AWS region
+
   cd /tmp/
-  wget https://aws-codedeploy-${REGION}.s3.amazonaws.com/latest/install
-  chmod +x ./install
+  sudo wget "https://aws-codedeploy-${REGION}.s3.amazonaws.com/latest/install" -O install
+  sudo chmod +x install
 
   if sudo ./install auto; then
-    echo "CodeDeploy Agent installation completed"
-    if ! ${AUTOUPDATE}; then
-      echo "Disabling Auto Update"
-      sudo sed -i '/@reboot/d' /etc/cron.d/codedeploy-agent-update
-      sudo chattr +i /etc/cron.d/codedeploy-agent-update
-      rm -f /tmp/install
+    echo "CodeDeploy Agent installed successfully."
+    
+    if [ "$ID" = "ubuntu" ]; then
+      sudo systemctl enable codedeploy-agent
+      sudo systemctl start codedeploy-agent
+    elif [ "$ID" = "amzn" ]; then
+      sudo systemctl enable codedeploy-agent
+      sudo systemctl start codedeploy-agent
     fi
-    sudo service codedeploy-agent start
+
+    # Disable auto-update if needed
+    if [ "$AUTOUPDATE" = false ]; then
+      echo "Disabling Auto Update for CodeDeploy Agent"
+      sudo rm -f /etc/cron.d/codedeploy-agent-update
+    fi
   else
-    echo "CodeDeploy Agent installation script failed, please investigate"
-    rm -f /tmp/install
+    echo "CodeDeploy Agent installation failed!"
+    sudo rm -f /tmp/install
     exit 1
   fi
 }
 
+# Install dependencies
+install_dependencies
 
-platformize
-installdep
+# Install CodeDeploy Agent
 install_codedeploy_agent
